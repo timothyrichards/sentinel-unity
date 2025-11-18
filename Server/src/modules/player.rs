@@ -1,6 +1,6 @@
 use crate::modules::creative_camera::{creative_camera_create, creative_camera_set_enabled};
+use crate::modules::entity::entity_create;
 use crate::modules::inventory::inventory_create;
-use crate::modules::world_spawn::world_spawn;
 use crate::types::{DbVector2, DbVector3};
 use spacetimedb::{Identity, ReducerContext, SpacetimeType, Table};
 
@@ -22,40 +22,21 @@ pub struct Player {
     #[unique]
     #[auto_inc]
     pub player_id: u32,
+    pub entity_id: u32,
     #[index(btree)]
     pub online: bool,
-    pub position: DbVector3,
-    pub rotation: DbVector3,
     pub look_direction: DbVector2,
     pub animation_state: DbAnimationState,
-    pub health: f32,
-    pub max_health: f32,
 }
 
 pub fn player_create(ctx: &ReducerContext) -> Result<(), String> {
-    let (position, rotation) = if let Some(spawn) = ctx.db.world_spawn().id().find(&0) {
-        (spawn.position, spawn.rotation)
-    } else {
-        (
-            DbVector3 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-            },
-            DbVector3 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-            },
-        )
-    };
+    let entity = entity_create(ctx)?;
 
     ctx.db.player().insert(Player {
         identity: ctx.sender,
         player_id: 0,
+        entity_id: entity.entity_id,
         online: true,
-        position,
-        rotation,
         look_direction: DbVector2 { x: 0.0, y: 0.0 },
         animation_state: DbAnimationState {
             horizontal_movement: 0.0,
@@ -66,8 +47,6 @@ pub fn player_create(ctx: &ReducerContext) -> Result<(), String> {
             is_jumping: false,
             is_attacking: false,
         },
-        health: 100.0,
-        max_health: 100.0,
     });
 
     log::debug!("Player {} created", ctx.sender);

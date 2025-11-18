@@ -6,7 +6,7 @@ using UnityEngine;
 public class SpacetimeManager : MonoBehaviour
 {
     const string SERVER_URL = "https://maincloud.spacetimedb.com";
-    const string MODULE_NAME = "sandbox";
+    const string MODULE_NAME = "sentinel";
 
     public static SpacetimeManager Instance { get; private set; }
     public static Identity LocalIdentity { get; private set; }
