@@ -17,50 +17,49 @@ namespace SpacetimeDB.Types
         public SpacetimeDB.Identity Identity;
         [DataMember(Name = "player_id")]
         public uint PlayerId;
+        [DataMember(Name = "entity_id")]
+        public uint EntityId;
         [DataMember(Name = "online")]
         public bool Online;
-        [DataMember(Name = "position")]
-        public DbVector3 Position;
-        [DataMember(Name = "rotation")]
-        public DbVector3 Rotation;
         [DataMember(Name = "look_direction")]
         public DbVector2 LookDirection;
         [DataMember(Name = "animation_state")]
         public DbAnimationState AnimationState;
-        [DataMember(Name = "health")]
-        public float Health;
-        [DataMember(Name = "max_health")]
-        public float MaxHealth;
+        [DataMember(Name = "last_valid_position")]
+        public DbVector3 LastValidPosition;
+        [DataMember(Name = "last_update_timestamp")]
+        public long LastUpdateTimestamp;
+        [DataMember(Name = "movement_speed")]
+        public float MovementSpeed;
 
         public Player(
             SpacetimeDB.Identity Identity,
             uint PlayerId,
+            uint EntityId,
             bool Online,
-            DbVector3 Position,
-            DbVector3 Rotation,
             DbVector2 LookDirection,
             DbAnimationState AnimationState,
-            float Health,
-            float MaxHealth
+            DbVector3 LastValidPosition,
+            long LastUpdateTimestamp,
+            float MovementSpeed
         )
         {
             this.Identity = Identity;
             this.PlayerId = PlayerId;
+            this.EntityId = EntityId;
             this.Online = Online;
-            this.Position = Position;
-            this.Rotation = Rotation;
             this.LookDirection = LookDirection;
             this.AnimationState = AnimationState;
-            this.Health = Health;
-            this.MaxHealth = MaxHealth;
+            this.LastValidPosition = LastValidPosition;
+            this.LastUpdateTimestamp = LastUpdateTimestamp;
+            this.MovementSpeed = MovementSpeed;
         }
 
         public Player()
         {
-            this.Position = new();
-            this.Rotation = new();
             this.LookDirection = new();
             this.AnimationState = new();
+            this.LastValidPosition = new();
         }
     }
 }

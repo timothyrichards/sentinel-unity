@@ -9,6 +9,7 @@ public class ThirdPersonController : MonoBehaviour
     [Header("Runtime")]
     [SerializeField] private PlayerEntity playerEntity;
     [SerializeField] private CharacterController controller;
+    [SerializeField] private MovementReconciliation reconciliation;
     public Transform cameraTransform;
     [SerializeField] private bool movingPlayer = false;
 
@@ -48,6 +49,7 @@ public class ThirdPersonController : MonoBehaviour
     {
         playerEntity = GetComponent<PlayerEntity>();
         controller = GetComponent<CharacterController>();
+        reconciliation = GetComponent<MovementReconciliation>();
         inputActions = new PlayerInputActions();
     }
 
@@ -69,6 +71,14 @@ public class ThirdPersonController : MonoBehaviour
         inputActions.Player.Attack.performed -= OnAttack;
         inputActions.Player.Look.performed -= OnLook;
         inputActions.Disable();
+    }
+
+    /// <summary>
+    /// Set the movement speed from the server (server-authoritative)
+    /// </summary>
+    public void SetMovementSpeed(float speed)
+    {
+        moveSpeed = speed;
     }
 
     private void OnMove(InputAction.CallbackContext context)
@@ -128,6 +138,9 @@ public class ThirdPersonController : MonoBehaviour
         if (movingPlayer) return;
         if (!SpacetimeManager.IsConnected() || !playerEntity.IsLocalPlayer()) return;
 
+        // Don't send position updates while reconciling (prevents feedback loop)
+        if (reconciliation != null && reconciliation.IsReconciling) return;
+
         var position = new DbVector3(transform.position.x, transform.position.y, transform.position.z);
         var rotation = new DbVector3(transform.eulerAngles.x, transform.eulerAngles.y, transform.eulerAngles.z);
         var animState = new DbAnimationState(
@@ -139,6 +152,12 @@ public class ThirdPersonController : MonoBehaviour
             playerEntity.animController.IsJumping,
             playerEntity.animController.IsAttacking
         );
+
+        // Record the move for reconciliation
+        if (reconciliation != null)
+        {
+            reconciliation.RecordMove(transform.position);
+        }
 
         ReducerMiddleware.Instance.CallReducer<object[]>(
             "PlayerUpdate",

@@ -3,5 +3,6 @@ pub mod building_piece_variant;
 pub mod creative_camera;
 pub mod entity;
 pub mod inventory;
+pub mod navmesh;
 pub mod player;
 pub mod world_spawn;

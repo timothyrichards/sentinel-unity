@@ -23,8 +23,11 @@ namespace SpacetimeDB.Types
             AddTable(BuildingPiecePlaced = new(conn));
             AddTable(BuildingPieceVariant = new(conn));
             AddTable(CreativeCamera = new(conn));
+            AddTable(Entity = new(conn));
             AddTable(Inventory = new(conn));
             AddTable(Item = new(conn));
+            AddTable(NavmeshConfig = new(conn));
+            AddTable(NavmeshGrid = new(conn));
             AddTable(Player = new(conn));
             AddTable(WorldSpawn = new(conn));
         }
@@ -444,6 +447,10 @@ namespace SpacetimeDB.Types
                 "inventory_add_item" => BSATNHelpers.Decode<Reducer.InventoryAddItem>(encodedArgs),
                 "inventory_create" => BSATNHelpers.Decode<Reducer.InventoryCreate>(encodedArgs),
                 "inventory_remove_item" => BSATNHelpers.Decode<Reducer.InventoryRemoveItem>(encodedArgs),
+                "navmesh_clear_grid" => BSATNHelpers.Decode<Reducer.NavmeshClearGrid>(encodedArgs),
+                "navmesh_get_stats" => BSATNHelpers.Decode<Reducer.NavmeshGetStats>(encodedArgs),
+                "navmesh_set_config" => BSATNHelpers.Decode<Reducer.NavmeshSetConfig>(encodedArgs),
+                "navmesh_upload_point" => BSATNHelpers.Decode<Reducer.NavmeshUploadPoint>(encodedArgs),
                 "player_apply_damage" => BSATNHelpers.Decode<Reducer.PlayerApplyDamage>(encodedArgs),
                 "player_connected" => BSATNHelpers.Decode<Reducer.PlayerConnected>(encodedArgs),
                 "player_reset_health" => BSATNHelpers.Decode<Reducer.PlayerResetHealth>(encodedArgs),
@@ -482,6 +489,10 @@ namespace SpacetimeDB.Types
                 Reducer.InventoryAddItem args => Reducers.InvokeInventoryAddItem(eventContext, args),
                 Reducer.InventoryCreate args => Reducers.InvokeInventoryCreate(eventContext, args),
                 Reducer.InventoryRemoveItem args => Reducers.InvokeInventoryRemoveItem(eventContext, args),
+                Reducer.NavmeshClearGrid args => Reducers.InvokeNavmeshClearGrid(eventContext, args),
+                Reducer.NavmeshGetStats args => Reducers.InvokeNavmeshGetStats(eventContext, args),
+                Reducer.NavmeshSetConfig args => Reducers.InvokeNavmeshSetConfig(eventContext, args),
+                Reducer.NavmeshUploadPoint args => Reducers.InvokeNavmeshUploadPoint(eventContext, args),
                 Reducer.PlayerApplyDamage args => Reducers.InvokePlayerApplyDamage(eventContext, args),
                 Reducer.PlayerConnected args => Reducers.InvokePlayerConnected(eventContext, args),
                 Reducer.PlayerResetHealth args => Reducers.InvokePlayerResetHealth(eventContext, args),

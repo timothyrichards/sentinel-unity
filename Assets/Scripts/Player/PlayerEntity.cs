@@ -4,6 +4,7 @@ using SpacetimeDB;
 using SpacetimeDB.Types;
 using ThirdPersonCamera;
 using UnityEngine;
+using DBEntity = SpacetimeDB.Types.Entity;
 
 public class PlayerEntity : Entity
 {
@@ -37,6 +38,7 @@ public class PlayerEntity : Entity
     public ThirdPersonController controller;
     public CreativeMode creativeMode;
     public AnimationController animController;
+    public MovementReconciliation reconciliation;
     public GameObject nameplate;
 
     [Header("Interpolation Settings")]
@@ -55,6 +57,7 @@ public class PlayerEntity : Entity
         controller = GetComponent<ThirdPersonController>();
         animController = GetComponent<AnimationController>();
         creativeMode = GetComponent<CreativeMode>();
+        reconciliation = GetComponent<MovementReconciliation>();
         _quantumConsole = QuantumConsole.Instance ?? FindFirstObjectByType<QuantumConsole>();
     }
 
@@ -84,13 +87,20 @@ public class PlayerEntity : Entity
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationLerpSpeed * Time.deltaTime);
     }
 
-    public void Configure(Player playerData, CameraController playerCamera = null, HealthDisplay playerHealthDisplay = null)
+    public void Configure(SpacetimeDB.Types.Player playerData, DBEntity entityData, CameraController playerCamera = null, HealthDisplay playerHealthDisplay = null)
     {
         var isLocalPlayer = IsLocalPlayer();
 
         // Set input and third person controller
         SetInputState(isLocalPlayer);
         controller.enabled = isLocalPlayer;
+
+        // Apply server-authoritative movement speed
+        controller.SetMovementSpeed(playerData.MovementSpeed);
+        if (reconciliation != null)
+        {
+            reconciliation.SetMovementSpeed(playerData.MovementSpeed);
+        }
 
         // If the player is the local player, enable input and camera
         if (isLocalPlayer)
@@ -100,7 +110,7 @@ public class PlayerEntity : Entity
             // Configure the camera
             playerCamera.target = transform;
             CameraFreeForm = playerCamera.GetComponent<FreeForm>();
-            CameraFreeForm.transform.eulerAngles = new Vector3(playerData.LookDirection.X, playerData.Rotation.Y, playerData.Rotation.Z);
+            CameraFreeForm.transform.eulerAngles = new Vector3(playerData.LookDirection.X, entityData.Rotation.Y, entityData.Rotation.Z);
 
             // Configure the health display
             nameplate.SetActive(false);
@@ -110,8 +120,8 @@ public class PlayerEntity : Entity
         else
         {
             // Initialize target values for interpolation
-            targetPosition = new Vector3(playerData.Position.X, playerData.Position.Y, playerData.Position.Z);
-            targetRotation = Quaternion.Euler(playerData.Rotation.X, playerData.Rotation.Y, playerData.Rotation.Z);
+            targetPosition = new Vector3(entityData.Position.X, entityData.Position.Y, entityData.Position.Z);
+            targetRotation = Quaternion.Euler(entityData.Rotation.X, entityData.Rotation.Y, entityData.Rotation.Z);
 
             // Set initial transform values to match targets
             transform.position = targetPosition;
@@ -119,23 +129,29 @@ public class PlayerEntity : Entity
         }
 
         // Update the health
-        if (playerData.Health != CurrentHealth)
+        if (entityData.Health != CurrentHealth)
         {
-            HealthComponent.SetHealth(playerData.Health, playerData.MaxHealth);
+            HealthComponent.SetHealth(entityData.Health, entityData.MaxHealth);
         }
 
         initialized = true;
     }
 
-    public void UpdateFromPlayerData(Player oldData, Player newData)
+    public void UpdateFromPlayerData(SpacetimeDB.Types.Player oldData, SpacetimeDB.Types.Player newData)
     {
-        // Only update position and rotation for non-local players
+        // Update movement speed if changed (server-authoritative)
+        if (oldData.MovementSpeed != newData.MovementSpeed)
+        {
+            controller.SetMovementSpeed(newData.MovementSpeed);
+            if (reconciliation != null)
+            {
+                reconciliation.SetMovementSpeed(newData.MovementSpeed);
+            }
+        }
+
+        // Handle animation state updates (not in Entity)
         if (!IsLocalPlayer())
         {
-            // Set target transform values
-            targetPosition = new Vector3(newData.Position.X, newData.Position.Y, newData.Position.Z);
-            targetRotation = Quaternion.Euler(newData.Rotation.X, newData.Rotation.Y, newData.Rotation.Z);
-
             // Set movement animation values
             animController.SetMovementAnimation(
                 new Vector2(
@@ -161,6 +177,26 @@ public class PlayerEntity : Entity
             {
                 animController.TriggerAttack();
             }
+        }
+    }
+
+    public void UpdateFromEntityData(DBEntity oldData, DBEntity newData)
+    {
+        // For local player, check for position corrections from server
+        if (IsLocalPlayer())
+        {
+            // Server sent back a position update - check if reconciliation is needed
+            Vector3 serverPosition = new Vector3(newData.Position.X, newData.Position.Y, newData.Position.Z);
+            if (reconciliation != null)
+            {
+                reconciliation.OnServerPositionUpdate(serverPosition);
+            }
+        }
+        else
+        {
+            // Update position and rotation for non-local players
+            targetPosition = new Vector3(newData.Position.X, newData.Position.Y, newData.Position.Z);
+            targetRotation = Quaternion.Euler(newData.Rotation.X, newData.Rotation.Y, newData.Rotation.Z);
         }
 
         // Update the health

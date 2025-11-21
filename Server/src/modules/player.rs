@@ -1,6 +1,7 @@
 use crate::modules::creative_camera::{creative_camera_create, creative_camera_set_enabled};
-use crate::modules::entity::entity_create;
+use crate::modules::entity::{entity, entity_create};
 use crate::modules::inventory::inventory_create;
+use crate::modules::navmesh::is_position_valid;
 use crate::types::{DbVector2, DbVector3};
 use spacetimedb::{Identity, ReducerContext, SpacetimeType, Table};
 
@@ -27,10 +28,18 @@ pub struct Player {
     pub online: bool,
     pub look_direction: DbVector2,
     pub animation_state: DbAnimationState,
+    /// Last valid position for rollback on invalid moves
+    pub last_valid_position: DbVector3,
+    /// Timestamp of last position update (for speed validation)
+    pub last_update_timestamp: i64,
+    /// Maximum allowed movement speed in units per second
+    pub movement_speed: f32,
 }
 
 pub fn player_create(ctx: &ReducerContext) -> Result<(), String> {
     let entity = entity_create(ctx)?;
+
+    let spawn_position = entity.position;
 
     ctx.db.player().insert(Player {
         identity: ctx.sender,
@@ -47,6 +56,9 @@ pub fn player_create(ctx: &ReducerContext) -> Result<(), String> {
             is_jumping: false,
             is_attacking: false,
         },
+        last_valid_position: spawn_position,
+        last_update_timestamp: ctx.timestamp.to_micros_since_unix_epoch(),
+        movement_speed: 6.0, // Default movement speed in units/sec
     });
 
     log::debug!("Player {} created", ctx.sender);
@@ -89,6 +101,7 @@ pub fn player_update(
     animation_state: DbAnimationState,
 ) -> Result<(), String> {
     if ctx.db.player().identity().find(ctx.sender).is_some() {
+        // Validate and update position (includes NavMesh and speed checks)
         player_set_position(ctx, position)?;
         player_set_rotation(ctx, rotation)?;
         player_set_animation_state(ctx, animation_state)?;
@@ -101,8 +114,71 @@ pub fn player_update(
 #[spacetimedb::reducer]
 pub fn player_set_position(ctx: &ReducerContext, position: DbVector3) -> Result<(), String> {
     if let Some(mut player) = ctx.db.player().identity().find(ctx.sender) {
-        player.position = position;
+        // Get the entity to access position
+        let mut entity = match ctx.db.entity().entity_id().find(&player.entity_id) {
+            Some(e) => e,
+            None => return Err("Entity not found".to_string()),
+        };
+
+        // Validate position is on walkable surface
+        if !is_position_valid(ctx, position.x, position.y, position.z) {
+            log::warn!(
+                "Player {} attempted to move to invalid position ({}, {}, {}). Resetting to last valid position.",
+                ctx.sender,
+                position.x,
+                position.y,
+                position.z
+            );
+            // Reset to last valid position
+            entity.position = player.last_valid_position;
+            ctx.db.entity().entity_id().update(entity);
+            return Err("Invalid position - not on walkable surface".to_string());
+        }
+
+        // Speed validation - use player's configured movement speed with tolerance
+        const MIN_TIME_DELTA_SECS: f32 = 0.05; // Ignore updates faster than 50ms to avoid false positives
+        const SPEED_TOLERANCE: f32 = 1.5; // Allow 50% over max speed for network lag/variations
+
+        let time_delta_micros = ctx.timestamp.to_micros_since_unix_epoch() - player.last_update_timestamp;
+        let time_delta_secs = time_delta_micros as f32 / 1_000_000.0;
+
+        if time_delta_secs > MIN_TIME_DELTA_SECS {
+            let last_pos = &entity.position;
+            // Only validate horizontal (XZ) movement - ignore Y for jumping
+            let horizontal_distance = ((position.x - last_pos.x).powi(2)
+                + (position.z - last_pos.z).powi(2))
+            .sqrt();
+            let speed = horizontal_distance / time_delta_secs;
+            let max_allowed_speed = player.movement_speed * SPEED_TOLERANCE;
+
+            if speed > max_allowed_speed {
+                log::warn!(
+                    "Player {} moving too fast: {:.2} units/sec (max: {:.2}, player speed: {:.2}). Horizontal distance: {:.2}, Time: {:.2}s",
+                    ctx.sender,
+                    speed,
+                    max_allowed_speed,
+                    player.movement_speed,
+                    horizontal_distance,
+                    time_delta_secs
+                );
+                // Reset to last valid position
+                entity.position = player.last_valid_position;
+                ctx.db.entity().entity_id().update(entity);
+                return Err(format!(
+                    "Invalid speed - moving too fast ({:.2} > {:.2} units/sec)",
+                    speed, max_allowed_speed
+                ));
+            }
+        }
+
+        // Position is valid - update entity and player
+        entity.position = position.clone();
+        player.last_valid_position = position;
+        player.last_update_timestamp = ctx.timestamp.to_micros_since_unix_epoch();
+
+        ctx.db.entity().entity_id().update(entity);
         ctx.db.player().identity().update(player);
+
         Ok(())
     } else {
         Err("Player not found".to_string())
@@ -111,9 +187,15 @@ pub fn player_set_position(ctx: &ReducerContext, position: DbVector3) -> Result<
 
 #[spacetimedb::reducer]
 pub fn player_set_rotation(ctx: &ReducerContext, rotation: DbVector3) -> Result<(), String> {
-    if let Some(mut player) = ctx.db.player().identity().find(ctx.sender) {
-        player.rotation = rotation;
-        ctx.db.player().identity().update(player);
+    if let Some(player) = ctx.db.player().identity().find(ctx.sender) {
+        // Get the entity to access rotation
+        let mut entity = match ctx.db.entity().entity_id().find(&player.entity_id) {
+            Some(e) => e,
+            None => return Err("Entity not found".to_string()),
+        };
+
+        entity.rotation = rotation;
+        ctx.db.entity().entity_id().update(entity);
         Ok(())
     } else {
         Err("Player not found".to_string())
@@ -147,12 +229,18 @@ pub fn player_apply_damage(
         }
 
         // Apply damage to target
-        if let Some(mut target) = ctx.db.player().identity().find(&target_identity) {
-            target.health -= damage;
-            if target.health < 0.0 {
-                target.health = 0.0;
+        if let Some(target_player) = ctx.db.player().identity().find(&target_identity) {
+            // Get the target's entity to modify health
+            let mut target_entity = match ctx.db.entity().entity_id().find(&target_player.entity_id) {
+                Some(e) => e,
+                None => return Err("Target entity not found".to_string()),
+            };
+
+            target_entity.health -= damage;
+            if target_entity.health < 0.0 {
+                target_entity.health = 0.0;
             }
-            ctx.db.player().identity().update(target);
+            ctx.db.entity().entity_id().update(target_entity);
             Ok(())
         } else {
             Err("Target player not found".to_string())
@@ -164,9 +252,15 @@ pub fn player_apply_damage(
 
 #[spacetimedb::reducer]
 pub fn player_reset_health(ctx: &ReducerContext, target_identity: Identity) -> Result<(), String> {
-    if let Some(mut player) = ctx.db.player().identity().find(&target_identity) {
-        player.health = player.max_health;
-        ctx.db.player().identity().update(player);
+    if let Some(player) = ctx.db.player().identity().find(&target_identity) {
+        // Get the entity to reset health
+        let mut entity = match ctx.db.entity().entity_id().find(&player.entity_id) {
+            Some(e) => e,
+            None => return Err("Entity not found".to_string()),
+        };
+
+        entity.health = entity.max_health;
+        ctx.db.entity().entity_id().update(entity);
         Ok(())
     } else {
         Err("Player not found".to_string())
