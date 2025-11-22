@@ -34,6 +34,10 @@ pub struct Player {
     pub last_update_timestamp: i64,
     /// Maximum allowed movement speed in units per second
     pub movement_speed: f32,
+    /// Maximum distance for interacting with lootables
+    pub interaction_range: f32,
+    /// Safety margin for client-side movement reconciliation (in meters)
+    pub reconciliation_safety_margin: f32,
 }
 
 pub fn player_create(ctx: &ReducerContext) -> Result<(), String> {
@@ -58,7 +62,9 @@ pub fn player_create(ctx: &ReducerContext) -> Result<(), String> {
         },
         last_valid_position: spawn_position,
         last_update_timestamp: ctx.timestamp.to_micros_since_unix_epoch(),
-        movement_speed: 6.0, // Default movement speed in units/sec
+        movement_speed: 6.0,
+        interaction_range: 3.0,
+        reconciliation_safety_margin: 1.5,
     });
 
     log::debug!("Player {} created", ctx.sender);
@@ -101,7 +107,6 @@ pub fn player_update(
     animation_state: DbAnimationState,
 ) -> Result<(), String> {
     if ctx.db.player().identity().find(ctx.sender).is_some() {
-        // Validate and update position (includes NavMesh and speed checks)
         player_set_position(ctx, position)?;
         player_set_rotation(ctx, rotation)?;
         player_set_animation_state(ctx, animation_state)?;
@@ -137,17 +142,17 @@ pub fn player_set_position(ctx: &ReducerContext, position: DbVector3) -> Result<
 
         // Speed validation - use player's configured movement speed with tolerance
         const MIN_TIME_DELTA_SECS: f32 = 0.05; // Ignore updates faster than 50ms to avoid false positives
-        const SPEED_TOLERANCE: f32 = 1.5; // Allow 50% over max speed for network lag/variations
+        const SPEED_TOLERANCE: f32 = 1.25; // Allow 25% over max speed for network lag/variations
 
-        let time_delta_micros = ctx.timestamp.to_micros_since_unix_epoch() - player.last_update_timestamp;
+        let time_delta_micros =
+            ctx.timestamp.to_micros_since_unix_epoch() - player.last_update_timestamp;
         let time_delta_secs = time_delta_micros as f32 / 1_000_000.0;
 
         if time_delta_secs > MIN_TIME_DELTA_SECS {
             let last_pos = &entity.position;
             // Only validate horizontal (XZ) movement - ignore Y for jumping
-            let horizontal_distance = ((position.x - last_pos.x).powi(2)
-                + (position.z - last_pos.z).powi(2))
-            .sqrt();
+            let horizontal_distance =
+                ((position.x - last_pos.x).powi(2) + (position.z - last_pos.z).powi(2)).sqrt();
             let speed = horizontal_distance / time_delta_secs;
             let max_allowed_speed = player.movement_speed * SPEED_TOLERANCE;
 
@@ -210,57 +215,6 @@ pub fn player_set_animation_state(
     if let Some(mut player) = ctx.db.player().identity().find(ctx.sender) {
         player.animation_state = animation_state;
         ctx.db.player().identity().update(player);
-        Ok(())
-    } else {
-        Err("Player not found".to_string())
-    }
-}
-
-#[spacetimedb::reducer]
-pub fn player_apply_damage(
-    ctx: &ReducerContext,
-    target_identity: Identity,
-    damage: f32,
-) -> Result<(), String> {
-    // Validate that the attacker exists and is online
-    if let Some(attacker) = ctx.db.player().identity().find(&ctx.sender) {
-        if !attacker.online {
-            return Err("Attacker is not online".to_string());
-        }
-
-        // Apply damage to target
-        if let Some(target_player) = ctx.db.player().identity().find(&target_identity) {
-            // Get the target's entity to modify health
-            let mut target_entity = match ctx.db.entity().entity_id().find(&target_player.entity_id) {
-                Some(e) => e,
-                None => return Err("Target entity not found".to_string()),
-            };
-
-            target_entity.health -= damage;
-            if target_entity.health < 0.0 {
-                target_entity.health = 0.0;
-            }
-            ctx.db.entity().entity_id().update(target_entity);
-            Ok(())
-        } else {
-            Err("Target player not found".to_string())
-        }
-    } else {
-        Err("Attacker not found".to_string())
-    }
-}
-
-#[spacetimedb::reducer]
-pub fn player_reset_health(ctx: &ReducerContext, target_identity: Identity) -> Result<(), String> {
-    if let Some(player) = ctx.db.player().identity().find(&target_identity) {
-        // Get the entity to reset health
-        let mut entity = match ctx.db.entity().entity_id().find(&player.entity_id) {
-            Some(e) => e,
-            None => return Err("Entity not found".to_string()),
-        };
-
-        entity.health = entity.max_health;
-        ctx.db.entity().entity_id().update(entity);
         Ok(())
     } else {
         Err("Player not found".to_string())

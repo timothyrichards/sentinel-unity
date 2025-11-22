@@ -12,12 +12,12 @@ namespace SpacetimeDB.Types
 {
     public sealed partial class RemoteReducers : RemoteBase
     {
-        public delegate void InventoryRemoveItemHandler(ReducerEventContext ctx, uint itemId, uint quantity);
+        public delegate void InventoryRemoveItemHandler(ReducerEventContext ctx, SpacetimeDB.Identity identity, uint itemId, uint quantity);
         public event InventoryRemoveItemHandler? OnInventoryRemoveItem;
 
-        public void InventoryRemoveItem(uint itemId, uint quantity)
+        public void InventoryRemoveItem(SpacetimeDB.Identity identity, uint itemId, uint quantity)
         {
-            conn.InternalCallReducer(new Reducer.InventoryRemoveItem(itemId, quantity), this.SetCallReducerFlags.InventoryRemoveItemFlags);
+            conn.InternalCallReducer(new Reducer.InventoryRemoveItem(identity, itemId, quantity), this.SetCallReducerFlags.InventoryRemoveItemFlags);
         }
 
         public bool InvokeInventoryRemoveItem(ReducerEventContext ctx, Reducer.InventoryRemoveItem args)
@@ -25,6 +25,7 @@ namespace SpacetimeDB.Types
             if (OnInventoryRemoveItem == null) return false;
             OnInventoryRemoveItem(
                 ctx,
+                args.Identity,
                 args.ItemId,
                 args.Quantity
             );
@@ -38,16 +39,20 @@ namespace SpacetimeDB.Types
         [DataContract]
         public sealed partial class InventoryRemoveItem : Reducer, IReducerArgs
         {
+            [DataMember(Name = "identity")]
+            public SpacetimeDB.Identity Identity;
             [DataMember(Name = "item_id")]
             public uint ItemId;
             [DataMember(Name = "quantity")]
             public uint Quantity;
 
             public InventoryRemoveItem(
+                SpacetimeDB.Identity Identity,
                 uint ItemId,
                 uint Quantity
             )
             {
+                this.Identity = Identity;
                 this.ItemId = ItemId;
                 this.Quantity = Quantity;
             }

@@ -6,10 +6,10 @@ using SpacetimeDB.Types;
 public class CollectiblesDatabase : ScriptableObject
 {
     [SerializeField]
-    private List<ItemPickup> collectiblePrefabs = new();
+    private List<LootableItem> collectiblePrefabs = new();
 
     // Dictionaries for quick lookup, populated on validation
-    private Dictionary<uint, ItemPickup> itemMap = new();
+    private Dictionary<uint, LootableItem> itemMap = new();
 
     private void OnValidate()
     {
@@ -29,7 +29,7 @@ public class CollectiblesDatabase : ScriptableObject
         }
     }
 
-    public void AddCollectible(ItemPickup item)
+    public void AddCollectible(LootableItem item)
     {
         // Check if item ID already exists
         if (itemMap.ContainsKey(item.itemId))
@@ -42,7 +42,7 @@ public class CollectiblesDatabase : ScriptableObject
         RebuildLookupMaps();
     }
 
-    public void RemoveCollectible(ItemPickup item)
+    public void RemoveCollectible(LootableItem item)
     {
         collectiblePrefabs.Remove(item);
         RebuildLookupMaps();
@@ -54,12 +54,12 @@ public class CollectiblesDatabase : ScriptableObject
         RebuildLookupMaps();
     }
 
-    public List<ItemPickup> GetAllCollectibles()
+    public List<LootableItem> GetAllCollectibles()
     {
         return collectiblePrefabs;
     }
 
-    public ItemPickup GetCollectibleById(uint itemId)
+    public LootableItem GetCollectibleById(uint itemId)
     {
         if (itemMap.Count == 0)
         {

@@ -69,20 +69,6 @@ public class InventorySync : MonoBehaviour
         }
     }
 
-    public void AddItem(PlayerEntity playerEntity, uint itemId, uint quantity = 1)
-    {
-        SpacetimeManager.Conn.Reducers.InventoryAddItem(itemId, quantity);
-
-        InvokeInventoryChanged(playerEntity);
-    }
-
-    public void RemoveItem(PlayerEntity playerEntity, uint itemId, uint quantity = 1)
-    {
-        SpacetimeManager.Conn.Reducers.InventoryRemoveItem(itemId, quantity);
-
-        InvokeInventoryChanged(playerEntity);
-    }
-
     public static Inventory GetInventory(PlayerEntity playerEntity)
     {
         var inventory = SpacetimeManager.Conn.Db.Inventory.Identity.Find(playerEntity.ownerIdentity);

@@ -1,5 +1,8 @@
+use crate::modules::admin::is_admin;
 use crate::modules::building_piece_variant::building_piece_variant_get;
-use crate::modules::inventory::{inventory_add_item, inventory_get_item, inventory_remove_item};
+use crate::modules::inventory::{
+    inventory_add_item_internal, inventory_get_item, inventory_remove_item_internal,
+};
 use crate::types::DbVector3;
 use spacetimedb::{Identity, ReducerContext, SpacetimeType, Table};
 
@@ -43,7 +46,7 @@ pub fn building_piece_place(
 
     // Remove the materials from inventory
     for cost in &variant.build_cost {
-        inventory_remove_item(ctx, cost.item_id, cost.quantity)?;
+        inventory_remove_item_internal(ctx, ctx.sender, cost.item_id, cost.quantity)?;
     }
 
     // Place the building piece
@@ -60,21 +63,23 @@ pub fn building_piece_place(
 
 #[spacetimedb::reducer]
 pub fn building_piece_remove(ctx: &ReducerContext, piece_id: u32) -> Result<(), String> {
-    // Only allow removal if the sender is the owner
     if let Some(piece) = ctx.db.building_piece_placed().piece_id().find(&piece_id) {
-        if piece.owner == ctx.sender {
+        let is_owner = piece.owner == ctx.sender;
+        let is_admin = is_admin(ctx, ctx.sender);
+
+        if is_owner || is_admin {
             // Get the building piece variant to refund materials
             let variant = building_piece_variant_get(ctx, piece.variant_id)?;
 
-            // Refund the materials
+            // Refund materials to the owner (not the admin who removed it)
             for cost in &variant.build_cost {
-                inventory_add_item(ctx, cost.item_id, cost.quantity)?;
+                inventory_add_item_internal(ctx, piece.owner, cost.item_id, cost.quantity)?;
             }
 
             ctx.db.building_piece_placed().piece_id().delete(&piece_id);
             Ok(())
         } else {
-            Err("Only the owner can remove their building pieces".to_string())
+            Err("Only the owner can remove this building piece".to_string())
         }
     } else {
         Err("Building piece not found".to_string())

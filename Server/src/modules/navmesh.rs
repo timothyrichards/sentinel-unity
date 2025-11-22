@@ -1,4 +1,5 @@
 use spacetimedb::{ReducerContext, Table};
+use crate::modules::admin::require_admin;
 
 /// Represents a single walkable grid cell in the NavMesh
 /// Uses spatial hashing for fast position lookups
@@ -29,8 +30,7 @@ pub struct NavMeshConfig {
     pub bounds_min_z: f32,
 }
 
-/// Upload NavMesh grid data to the database
-/// This should be called once during server initialization
+/// Upload NavMesh grid data to the database (admin only)
 #[spacetimedb::reducer]
 pub fn navmesh_upload_point(
     ctx: &ReducerContext,
@@ -40,6 +40,8 @@ pub fn navmesh_upload_point(
     grid_x: i32,
     grid_z: i32,
 ) -> Result<(), String> {
+    require_admin(ctx)?;
+
     ctx.db.navmesh_grid().insert(NavMeshGrid {
         id: 0,
         x,
@@ -52,7 +54,7 @@ pub fn navmesh_upload_point(
     Ok(())
 }
 
-/// Set or update the NavMesh configuration
+/// Set or update the NavMesh configuration (admin only)
 #[spacetimedb::reducer]
 pub fn navmesh_set_config(
     ctx: &ReducerContext,
@@ -61,6 +63,8 @@ pub fn navmesh_set_config(
     bounds_min_x: f32,
     bounds_min_z: f32,
 ) -> Result<(), String> {
+    require_admin(ctx)?;
+
     // Check if config already exists
     if let Some(mut config) = ctx.db.navmesh_config().id().find(&0) {
         config.cell_size = cell_size;
@@ -85,10 +89,11 @@ pub fn navmesh_set_config(
     Ok(())
 }
 
-/// Clear all NavMesh grid data
-/// Use with caution - this deletes all walkable points
+/// Clear all NavMesh grid data (admin only)
 #[spacetimedb::reducer]
 pub fn navmesh_clear_grid(ctx: &ReducerContext) -> Result<(), String> {
+    require_admin(ctx)?;
+
     // Delete all grid points
     let points: Vec<_> = ctx.db.navmesh_grid().iter().collect();
     for point in points {

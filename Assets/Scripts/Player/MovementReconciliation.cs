@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using SpacetimeDB.Types;
 
 /// <summary>
 /// Handles client-side prediction and server reconciliation for player movement
@@ -11,8 +12,8 @@ public class MovementReconciliation : MonoBehaviour
     [SerializeField] private float reconciliationSpeed = 10f;
     [Tooltip("Expected maximum ping in milliseconds (used to calculate position divergence tolerance)")]
     [SerializeField] private float maxExpectedPingMs = 300f; // Increased from 200ms
-    [Tooltip("Safety margin added to calculated threshold (in meters)")]
-    [SerializeField] private float safetyMargin = 1.5f; // Increased from 0.5m
+    [Tooltip("Fallback safety margin if server value unavailable (in meters)")]
+    [SerializeField] private float fallbackSafetyMargin = 1.5f;
 
     private PlayerEntity playerEntity;
     private CharacterController characterController;
@@ -44,7 +45,19 @@ public class MovementReconciliation : MonoBehaviour
     {
         float rttSeconds = maxExpectedPingMs / 1000f;
         float maxDivergence = currentMovementSpeed * rttSeconds;
-        return maxDivergence + safetyMargin;
+        return maxDivergence + GetSafetyMargin();
+    }
+
+    /// <summary>
+    /// Get safety margin from server, falling back to local value if unavailable
+    /// </summary>
+    private float GetSafetyMargin()
+    {
+        if (SpacetimeManager.Conn == null || SpacetimeManager.LocalIdentity == null)
+            return fallbackSafetyMargin;
+
+        var player = SpacetimeManager.Conn.Db.Player.Identity.Find(SpacetimeManager.LocalIdentity);
+        return player?.ReconciliationSafetyMargin ?? fallbackSafetyMargin;
     }
 
     /// <summary>

@@ -12,12 +12,12 @@ namespace SpacetimeDB.Types
 {
     public sealed partial class RemoteReducers : RemoteBase
     {
-        public delegate void InventoryAddItemHandler(ReducerEventContext ctx, uint itemId, uint quantity);
+        public delegate void InventoryAddItemHandler(ReducerEventContext ctx, SpacetimeDB.Identity identity, uint itemId, uint quantity);
         public event InventoryAddItemHandler? OnInventoryAddItem;
 
-        public void InventoryAddItem(uint itemId, uint quantity)
+        public void InventoryAddItem(SpacetimeDB.Identity identity, uint itemId, uint quantity)
         {
-            conn.InternalCallReducer(new Reducer.InventoryAddItem(itemId, quantity), this.SetCallReducerFlags.InventoryAddItemFlags);
+            conn.InternalCallReducer(new Reducer.InventoryAddItem(identity, itemId, quantity), this.SetCallReducerFlags.InventoryAddItemFlags);
         }
 
         public bool InvokeInventoryAddItem(ReducerEventContext ctx, Reducer.InventoryAddItem args)
@@ -25,6 +25,7 @@ namespace SpacetimeDB.Types
             if (OnInventoryAddItem == null) return false;
             OnInventoryAddItem(
                 ctx,
+                args.Identity,
                 args.ItemId,
                 args.Quantity
             );
@@ -38,16 +39,20 @@ namespace SpacetimeDB.Types
         [DataContract]
         public sealed partial class InventoryAddItem : Reducer, IReducerArgs
         {
+            [DataMember(Name = "identity")]
+            public SpacetimeDB.Identity Identity;
             [DataMember(Name = "item_id")]
             public uint ItemId;
             [DataMember(Name = "quantity")]
             public uint Quantity;
 
             public InventoryAddItem(
+                SpacetimeDB.Identity Identity,
                 uint ItemId,
                 uint Quantity
             )
             {
+                this.Identity = Identity;
                 this.ItemId = ItemId;
                 this.Quantity = Quantity;
             }

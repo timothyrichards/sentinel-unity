@@ -7,6 +7,8 @@ mod types;
 
 // Local module imports
 use modules::building_piece_variant::building_piece_variant_init;
+use modules::inventory::item_init;
+use modules::lootable::lootable_item_type_init;
 use modules::player::{player, player_set_online_status};
 use modules::world_spawn::world_spawn_init;
 
@@ -14,6 +16,8 @@ use modules::world_spawn::world_spawn_init;
 pub fn init(ctx: &ReducerContext) -> Result<(), String> {
     world_spawn_init(ctx)?;
     building_piece_variant_init(ctx)?;
+    item_init(ctx)?;
+    lootable_item_type_init(ctx)?;
     Ok(())
 }
 

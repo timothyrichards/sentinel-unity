@@ -31,6 +31,10 @@ namespace SpacetimeDB.Types
         public long LastUpdateTimestamp;
         [DataMember(Name = "movement_speed")]
         public float MovementSpeed;
+        [DataMember(Name = "interaction_range")]
+        public float InteractionRange;
+        [DataMember(Name = "reconciliation_safety_margin")]
+        public float ReconciliationSafetyMargin;
 
         public Player(
             SpacetimeDB.Identity Identity,
@@ -41,7 +45,9 @@ namespace SpacetimeDB.Types
             DbAnimationState AnimationState,
             DbVector3 LastValidPosition,
             long LastUpdateTimestamp,
-            float MovementSpeed
+            float MovementSpeed,
+            float InteractionRange,
+            float ReconciliationSafetyMargin
         )
         {
             this.Identity = Identity;
@@ -53,6 +59,8 @@ namespace SpacetimeDB.Types
             this.LastValidPosition = LastValidPosition;
             this.LastUpdateTimestamp = LastUpdateTimestamp;
             this.MovementSpeed = MovementSpeed;
+            this.InteractionRange = InteractionRange;
+            this.ReconciliationSafetyMargin = ReconciliationSafetyMargin;
         }
 
         public Player()

@@ -20,12 +20,15 @@ namespace SpacetimeDB.Types
     {
         public RemoteTables(DbConnection conn)
         {
+            AddTable(Admin = new(conn));
             AddTable(BuildingPiecePlaced = new(conn));
             AddTable(BuildingPieceVariant = new(conn));
             AddTable(CreativeCamera = new(conn));
             AddTable(Entity = new(conn));
             AddTable(Inventory = new(conn));
             AddTable(Item = new(conn));
+            AddTable(LootableItemType = new(conn));
+            AddTable(LootableSpawn = new(conn));
             AddTable(NavmeshConfig = new(conn));
             AddTable(NavmeshGrid = new(conn));
             AddTable(Player = new(conn));
@@ -438,27 +441,34 @@ namespace SpacetimeDB.Types
             var encodedArgs = update.ReducerCall.Args;
             return update.ReducerCall.ReducerName switch
             {
+                "admin_add" => BSATNHelpers.Decode<Reducer.AdminAdd>(encodedArgs),
+                "admin_remove" => BSATNHelpers.Decode<Reducer.AdminRemove>(encodedArgs),
                 "building_piece_place" => BSATNHelpers.Decode<Reducer.BuildingPiecePlace>(encodedArgs),
                 "building_piece_remove" => BSATNHelpers.Decode<Reducer.BuildingPieceRemove>(encodedArgs),
                 "connect" => BSATNHelpers.Decode<Reducer.Connect>(encodedArgs),
                 "creative_camera_move" => BSATNHelpers.Decode<Reducer.CreativeCameraMove>(encodedArgs),
                 "creative_camera_set_enabled" => BSATNHelpers.Decode<Reducer.CreativeCameraSetEnabled>(encodedArgs),
                 "disconnect" => BSATNHelpers.Decode<Reducer.Disconnect>(encodedArgs),
+                "entity_apply_damage" => BSATNHelpers.Decode<Reducer.EntityApplyDamage>(encodedArgs),
+                "entity_reset_health" => BSATNHelpers.Decode<Reducer.EntityResetHealth>(encodedArgs),
                 "inventory_add_item" => BSATNHelpers.Decode<Reducer.InventoryAddItem>(encodedArgs),
                 "inventory_create" => BSATNHelpers.Decode<Reducer.InventoryCreate>(encodedArgs),
                 "inventory_remove_item" => BSATNHelpers.Decode<Reducer.InventoryRemoveItem>(encodedArgs),
+                "lootable_check_respawns" => BSATNHelpers.Decode<Reducer.LootableCheckRespawns>(encodedArgs),
+                "lootable_create_spawn" => BSATNHelpers.Decode<Reducer.LootableCreateSpawn>(encodedArgs),
+                "lootable_create_type" => BSATNHelpers.Decode<Reducer.LootableCreateType>(encodedArgs),
+                "lootable_delete_all_spawns_of_type" => BSATNHelpers.Decode<Reducer.LootableDeleteAllSpawnsOfType>(encodedArgs),
+                "lootable_delete_spawn" => BSATNHelpers.Decode<Reducer.LootableDeleteSpawn>(encodedArgs),
+                "lootable_loot" => BSATNHelpers.Decode<Reducer.LootableLoot>(encodedArgs),
                 "navmesh_clear_grid" => BSATNHelpers.Decode<Reducer.NavmeshClearGrid>(encodedArgs),
                 "navmesh_get_stats" => BSATNHelpers.Decode<Reducer.NavmeshGetStats>(encodedArgs),
                 "navmesh_set_config" => BSATNHelpers.Decode<Reducer.NavmeshSetConfig>(encodedArgs),
                 "navmesh_upload_point" => BSATNHelpers.Decode<Reducer.NavmeshUploadPoint>(encodedArgs),
-                "player_apply_damage" => BSATNHelpers.Decode<Reducer.PlayerApplyDamage>(encodedArgs),
                 "player_connected" => BSATNHelpers.Decode<Reducer.PlayerConnected>(encodedArgs),
-                "player_reset_health" => BSATNHelpers.Decode<Reducer.PlayerResetHealth>(encodedArgs),
                 "player_set_animation_state" => BSATNHelpers.Decode<Reducer.PlayerSetAnimationState>(encodedArgs),
                 "player_set_position" => BSATNHelpers.Decode<Reducer.PlayerSetPosition>(encodedArgs),
                 "player_set_rotation" => BSATNHelpers.Decode<Reducer.PlayerSetRotation>(encodedArgs),
                 "player_update" => BSATNHelpers.Decode<Reducer.PlayerUpdate>(encodedArgs),
-                "world_spawn_set" => BSATNHelpers.Decode<Reducer.WorldSpawnSet>(encodedArgs),
                 var reducer => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
         }
@@ -480,27 +490,34 @@ namespace SpacetimeDB.Types
             var eventContext = (ReducerEventContext)context;
             return reducer switch
             {
+                Reducer.AdminAdd args => Reducers.InvokeAdminAdd(eventContext, args),
+                Reducer.AdminRemove args => Reducers.InvokeAdminRemove(eventContext, args),
                 Reducer.BuildingPiecePlace args => Reducers.InvokeBuildingPiecePlace(eventContext, args),
                 Reducer.BuildingPieceRemove args => Reducers.InvokeBuildingPieceRemove(eventContext, args),
                 Reducer.Connect args => Reducers.InvokeConnect(eventContext, args),
                 Reducer.CreativeCameraMove args => Reducers.InvokeCreativeCameraMove(eventContext, args),
                 Reducer.CreativeCameraSetEnabled args => Reducers.InvokeCreativeCameraSetEnabled(eventContext, args),
                 Reducer.Disconnect args => Reducers.InvokeDisconnect(eventContext, args),
+                Reducer.EntityApplyDamage args => Reducers.InvokeEntityApplyDamage(eventContext, args),
+                Reducer.EntityResetHealth args => Reducers.InvokeEntityResetHealth(eventContext, args),
                 Reducer.InventoryAddItem args => Reducers.InvokeInventoryAddItem(eventContext, args),
                 Reducer.InventoryCreate args => Reducers.InvokeInventoryCreate(eventContext, args),
                 Reducer.InventoryRemoveItem args => Reducers.InvokeInventoryRemoveItem(eventContext, args),
+                Reducer.LootableCheckRespawns args => Reducers.InvokeLootableCheckRespawns(eventContext, args),
+                Reducer.LootableCreateSpawn args => Reducers.InvokeLootableCreateSpawn(eventContext, args),
+                Reducer.LootableCreateType args => Reducers.InvokeLootableCreateType(eventContext, args),
+                Reducer.LootableDeleteAllSpawnsOfType args => Reducers.InvokeLootableDeleteAllSpawnsOfType(eventContext, args),
+                Reducer.LootableDeleteSpawn args => Reducers.InvokeLootableDeleteSpawn(eventContext, args),
+                Reducer.LootableLoot args => Reducers.InvokeLootableLoot(eventContext, args),
                 Reducer.NavmeshClearGrid args => Reducers.InvokeNavmeshClearGrid(eventContext, args),
                 Reducer.NavmeshGetStats args => Reducers.InvokeNavmeshGetStats(eventContext, args),
                 Reducer.NavmeshSetConfig args => Reducers.InvokeNavmeshSetConfig(eventContext, args),
                 Reducer.NavmeshUploadPoint args => Reducers.InvokeNavmeshUploadPoint(eventContext, args),
-                Reducer.PlayerApplyDamage args => Reducers.InvokePlayerApplyDamage(eventContext, args),
                 Reducer.PlayerConnected args => Reducers.InvokePlayerConnected(eventContext, args),
-                Reducer.PlayerResetHealth args => Reducers.InvokePlayerResetHealth(eventContext, args),
                 Reducer.PlayerSetAnimationState args => Reducers.InvokePlayerSetAnimationState(eventContext, args),
                 Reducer.PlayerSetPosition args => Reducers.InvokePlayerSetPosition(eventContext, args),
                 Reducer.PlayerSetRotation args => Reducers.InvokePlayerSetRotation(eventContext, args),
                 Reducer.PlayerUpdate args => Reducers.InvokePlayerUpdate(eventContext, args),
-                Reducer.WorldSpawnSet args => Reducers.InvokeWorldSpawnSet(eventContext, args),
                 _ => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
         }

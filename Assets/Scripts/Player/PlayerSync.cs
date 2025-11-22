@@ -104,8 +104,9 @@ public class PlayerSync : MonoBehaviour
         // Store the player object reference
         playerObjects[playerData.Identity] = playerEntity;
 
-        // Set the owner identity
+        // Set the owner identity and entity ID
         playerEntity.ownerIdentity = playerData.Identity;
+        playerEntity.entityId = playerData.EntityId;
 
         // Set the inventory
         playerEntity.inventory = InventorySync.GetInventory(playerEntity).Items;

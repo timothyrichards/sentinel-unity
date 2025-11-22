@@ -13,6 +13,7 @@ public class PlayerEntity : Entity
     [Header("Runtime")]
     public bool initialized = false;
     public Identity ownerIdentity;
+    public uint entityId;
     public bool InputEnabled { get; private set; } = true;
     public float CurrentHealth => HealthComponent.CurrentHealth;
     public List<ItemRef> inventory = new();
@@ -274,7 +275,7 @@ public class PlayerEntity : Entity
     {
         if (IsLocalPlayer() && target is PlayerEntity playerTarget)
         {
-            SpacetimeManager.Conn.Reducers.PlayerApplyDamage(playerTarget.ownerIdentity, damage);
+            SpacetimeManager.Conn.Reducers.EntityApplyDamage(playerTarget.entityId, damage);
             return;
         }
 
@@ -290,7 +291,7 @@ public class PlayerEntity : Entity
     {
         if (IsLocalPlayer())
         {
-            SpacetimeManager.Conn.Reducers.PlayerResetHealth(ownerIdentity);
+            SpacetimeManager.Conn.Reducers.EntityResetHealth(entityId);
         }
     }
 

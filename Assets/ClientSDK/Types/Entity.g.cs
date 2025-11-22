@@ -23,13 +23,16 @@ namespace SpacetimeDB.Types
         public float Health;
         [DataMember(Name = "max_health")]
         public float MaxHealth;
+        [DataMember(Name = "attack_range")]
+        public float AttackRange;
 
         public Entity(
             uint EntityId,
             DbVector3 Position,
             DbVector3 Rotation,
             float Health,
-            float MaxHealth
+            float MaxHealth,
+            float AttackRange
         )
         {
             this.EntityId = EntityId;
@@ -37,6 +40,7 @@ namespace SpacetimeDB.Types
             this.Rotation = Rotation;
             this.Health = Health;
             this.MaxHealth = MaxHealth;
+            this.AttackRange = AttackRange;
         }
 
         public Entity()

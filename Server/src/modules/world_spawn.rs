@@ -23,7 +23,6 @@ pub fn world_spawn_init(ctx: &ReducerContext) -> Result<(), String> {
     Ok(())
 }
 
-#[spacetimedb::reducer]
 pub fn world_spawn_set(
     ctx: &ReducerContext,
     id: u32,
