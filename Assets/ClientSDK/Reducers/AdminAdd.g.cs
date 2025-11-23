@@ -22,7 +22,18 @@ namespace SpacetimeDB.Types
 
         public bool InvokeAdminAdd(ReducerEventContext ctx, Reducer.AdminAdd args)
         {
-            if (OnAdminAdd == null) return false;
+            if (OnAdminAdd == null)
+            {
+                if (InternalOnUnhandledReducerError != null)
+                {
+                    switch (ctx.Event.Status)
+                    {
+                        case Status.Failed(var reason): InternalOnUnhandledReducerError(ctx, new Exception(reason)); break;
+                        case Status.OutOfEnergy(var _): InternalOnUnhandledReducerError(ctx, new Exception("out of energy")); break;
+                    }
+                }
+                return false;
+            }
             OnAdminAdd(
                 ctx,
                 args.Identity

@@ -22,7 +22,18 @@ namespace SpacetimeDB.Types
 
         public bool InvokeInventoryAddItem(ReducerEventContext ctx, Reducer.InventoryAddItem args)
         {
-            if (OnInventoryAddItem == null) return false;
+            if (OnInventoryAddItem == null)
+            {
+                if (InternalOnUnhandledReducerError != null)
+                {
+                    switch (ctx.Event.Status)
+                    {
+                        case Status.Failed(var reason): InternalOnUnhandledReducerError(ctx, new Exception(reason)); break;
+                        case Status.OutOfEnergy(var _): InternalOnUnhandledReducerError(ctx, new Exception("out of energy")); break;
+                    }
+                }
+                return false;
+            }
             OnInventoryAddItem(
                 ctx,
                 args.Identity,

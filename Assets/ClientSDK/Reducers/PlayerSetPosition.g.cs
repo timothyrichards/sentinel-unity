@@ -22,7 +22,18 @@ namespace SpacetimeDB.Types
 
         public bool InvokePlayerSetPosition(ReducerEventContext ctx, Reducer.PlayerSetPosition args)
         {
-            if (OnPlayerSetPosition == null) return false;
+            if (OnPlayerSetPosition == null)
+            {
+                if (InternalOnUnhandledReducerError != null)
+                {
+                    switch (ctx.Event.Status)
+                    {
+                        case Status.Failed(var reason): InternalOnUnhandledReducerError(ctx, new Exception(reason)); break;
+                        case Status.OutOfEnergy(var _): InternalOnUnhandledReducerError(ctx, new Exception("out of energy")); break;
+                    }
+                }
+                return false;
+            }
             OnPlayerSetPosition(
                 ctx,
                 args.Position

@@ -22,7 +22,18 @@ namespace SpacetimeDB.Types
 
         public bool InvokeLootableCreateType(ReducerEventContext ctx, Reducer.LootableCreateType args)
         {
-            if (OnLootableCreateType == null) return false;
+            if (OnLootableCreateType == null)
+            {
+                if (InternalOnUnhandledReducerError != null)
+                {
+                    switch (ctx.Event.Status)
+                    {
+                        case Status.Failed(var reason): InternalOnUnhandledReducerError(ctx, new Exception(reason)); break;
+                        case Status.OutOfEnergy(var _): InternalOnUnhandledReducerError(ctx, new Exception("out of energy")); break;
+                    }
+                }
+                return false;
+            }
             OnLootableCreateType(
                 ctx,
                 args.TypeId,

@@ -22,7 +22,18 @@ namespace SpacetimeDB.Types
 
         public bool InvokeBuildingPieceRemove(ReducerEventContext ctx, Reducer.BuildingPieceRemove args)
         {
-            if (OnBuildingPieceRemove == null) return false;
+            if (OnBuildingPieceRemove == null)
+            {
+                if (InternalOnUnhandledReducerError != null)
+                {
+                    switch (ctx.Event.Status)
+                    {
+                        case Status.Failed(var reason): InternalOnUnhandledReducerError(ctx, new Exception(reason)); break;
+                        case Status.OutOfEnergy(var _): InternalOnUnhandledReducerError(ctx, new Exception("out of energy")); break;
+                    }
+                }
+                return false;
+            }
             OnBuildingPieceRemove(
                 ctx,
                 args.PieceId

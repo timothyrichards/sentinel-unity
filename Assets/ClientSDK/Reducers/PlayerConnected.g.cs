@@ -22,7 +22,18 @@ namespace SpacetimeDB.Types
 
         public bool InvokePlayerConnected(ReducerEventContext ctx, Reducer.PlayerConnected args)
         {
-            if (OnPlayerConnected == null) return false;
+            if (OnPlayerConnected == null)
+            {
+                if (InternalOnUnhandledReducerError != null)
+                {
+                    switch (ctx.Event.Status)
+                    {
+                        case Status.Failed(var reason): InternalOnUnhandledReducerError(ctx, new Exception(reason)); break;
+                        case Status.OutOfEnergy(var _): InternalOnUnhandledReducerError(ctx, new Exception("out of energy")); break;
+                    }
+                }
+                return false;
+            }
             OnPlayerConnected(
                 ctx
             );

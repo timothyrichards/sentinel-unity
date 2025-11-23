@@ -22,7 +22,18 @@ namespace SpacetimeDB.Types
 
         public bool InvokeNavmeshClearGrid(ReducerEventContext ctx, Reducer.NavmeshClearGrid args)
         {
-            if (OnNavmeshClearGrid == null) return false;
+            if (OnNavmeshClearGrid == null)
+            {
+                if (InternalOnUnhandledReducerError != null)
+                {
+                    switch (ctx.Event.Status)
+                    {
+                        case Status.Failed(var reason): InternalOnUnhandledReducerError(ctx, new Exception(reason)); break;
+                        case Status.OutOfEnergy(var _): InternalOnUnhandledReducerError(ctx, new Exception("out of energy")); break;
+                    }
+                }
+                return false;
+            }
             OnNavmeshClearGrid(
                 ctx
             );

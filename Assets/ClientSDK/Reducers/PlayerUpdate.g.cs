@@ -22,7 +22,18 @@ namespace SpacetimeDB.Types
 
         public bool InvokePlayerUpdate(ReducerEventContext ctx, Reducer.PlayerUpdate args)
         {
-            if (OnPlayerUpdate == null) return false;
+            if (OnPlayerUpdate == null)
+            {
+                if (InternalOnUnhandledReducerError != null)
+                {
+                    switch (ctx.Event.Status)
+                    {
+                        case Status.Failed(var reason): InternalOnUnhandledReducerError(ctx, new Exception(reason)); break;
+                        case Status.OutOfEnergy(var _): InternalOnUnhandledReducerError(ctx, new Exception("out of energy")); break;
+                    }
+                }
+                return false;
+            }
             OnPlayerUpdate(
                 ctx,
                 args.Position,

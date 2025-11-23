@@ -15,7 +15,7 @@ public class NavMeshUploader : EditorWindow
     private int uploadedCount = 0;
     private int totalPoints = 0;
 
-    [MenuItem("Tools/NavMesh Uploader")]
+    [MenuItem("SpacetimeDB/NavMesh Uploader")]
     public static void ShowWindow()
     {
         GetWindow<NavMeshUploader>("NavMesh Uploader");

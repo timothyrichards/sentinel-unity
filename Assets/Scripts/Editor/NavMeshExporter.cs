@@ -21,7 +21,7 @@ public class NavMeshExporter : EditorWindow
     private string outputPath = "Assets/NavMeshData.json";
     private int sampledPointsCount = 0;
 
-    [MenuItem("Tools/NavMesh Exporter")]
+    [MenuItem("SpacetimeDB/NavMesh Exporter")]
     public static void ShowWindow()
     {
         GetWindow<NavMeshExporter>("NavMesh Exporter");

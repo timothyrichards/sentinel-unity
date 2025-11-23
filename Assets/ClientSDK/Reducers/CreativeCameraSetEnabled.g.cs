@@ -22,7 +22,18 @@ namespace SpacetimeDB.Types
 
         public bool InvokeCreativeCameraSetEnabled(ReducerEventContext ctx, Reducer.CreativeCameraSetEnabled args)
         {
-            if (OnCreativeCameraSetEnabled == null) return false;
+            if (OnCreativeCameraSetEnabled == null)
+            {
+                if (InternalOnUnhandledReducerError != null)
+                {
+                    switch (ctx.Event.Status)
+                    {
+                        case Status.Failed(var reason): InternalOnUnhandledReducerError(ctx, new Exception(reason)); break;
+                        case Status.OutOfEnergy(var _): InternalOnUnhandledReducerError(ctx, new Exception("out of energy")); break;
+                    }
+                }
+                return false;
+            }
             OnCreativeCameraSetEnabled(
                 ctx,
                 args.Enabled
