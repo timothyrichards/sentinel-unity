@@ -1,9 +1,9 @@
-use spacetimedb::{ReducerContext, Table};
-use crate::types::DbVector3;
 use crate::modules::admin::require_admin;
+use crate::modules::entity::entity;
 use crate::modules::inventory::inventory_add_item_internal;
 use crate::modules::player::player;
-use crate::modules::entity::entity;
+use crate::types::DbVector3;
+use spacetimedb::{ReducerContext, Table};
 
 /// Defines a type of lootable item (e.g., "Rock", "Stick")
 /// The type_id also serves as the item_id for inventory
@@ -13,6 +13,10 @@ pub struct LootableItemType {
     pub type_id: u32,
     /// Display name of the item
     pub name: String,
+    /// Description of the item
+    pub description: String,
+    /// Weight of a single item
+    pub weight: f32,
     /// Quantity given when looted
     pub quantity: u32,
     /// Time in microseconds before the item respawns
@@ -46,18 +50,33 @@ pub fn lootable_item_type_init(ctx: &ReducerContext) -> Result<(), String> {
     ctx.db.lootable_item_type().insert(LootableItemType {
         type_id: 0,
         name: "Branch".to_string(),
+        description: "A fallen tree branch. Useful for crafting.".to_string(),
+        weight: 0.5,
         quantity: 5,
         respawn_time_us: 30_000_000, // 30 seconds
-        loot_distance: 3.0,
+        loot_distance: 1.5,
     });
 
     // Rock - type_id 1 (also used as item_id)
     ctx.db.lootable_item_type().insert(LootableItemType {
         type_id: 1,
         name: "Rock".to_string(),
+        description: "A small stone. Can be used for tools or building.".to_string(),
+        weight: 1.0,
         quantity: 5,
         respawn_time_us: 30_000_000, // 30 seconds
-        loot_distance: 3.0,
+        loot_distance: 1.5,
+    });
+
+    // Tree - type_id 2 (also used as item_id)
+    ctx.db.lootable_item_type().insert(LootableItemType {
+        type_id: 2,
+        name: "Tree".to_string(),
+        description: "A harvestable tree. Provides wood for construction.".to_string(),
+        weight: 2.0,
+        quantity: 15,
+        respawn_time_us: 30_000_000, // 30 seconds
+        loot_distance: 2.5,
     });
 
     log::info!("Initialized default lootable item types");
@@ -65,9 +84,17 @@ pub fn lootable_item_type_init(ctx: &ReducerContext) -> Result<(), String> {
     // Default spawn: Branch (type_id 0)
     ctx.db.lootable_spawn().insert(LootableSpawn {
         spawn_id: 0, // auto_inc will assign
-        type_id: 0, // Branch
-        position: DbVector3 { x: 8.099998, y: 51.59996, z: -223.9 },
-        rotation: DbVector3 { x: 0.0, y: 86.239, z: 0.0 },
+        type_id: 0,  // Branch
+        position: DbVector3 {
+            x: -220.332733,
+            y: -29.7000008,
+            z: 254.894043,
+        },
+        rotation: DbVector3 {
+            x: 0.0,
+            y: 86.239,
+            z: 0.0,
+        },
         is_looted: false,
         looted_at_us: 0,
     });
@@ -75,9 +102,17 @@ pub fn lootable_item_type_init(ctx: &ReducerContext) -> Result<(), String> {
     // Default spawn: Rock (type_id 1)
     ctx.db.lootable_spawn().insert(LootableSpawn {
         spawn_id: 0, // auto_inc will assign
-        type_id: 1, // Rock
-        position: DbVector3 { x: 4.04488802, y: 51.2669983, z: -222.787201 },
-        rotation: DbVector3 { x: 0.0, y: 0.0, z: -90.0 },
+        type_id: 1,  // Rock
+        position: DbVector3 {
+            x: -223.271866,
+            y: -29.7525482,
+            z: 254.474808,
+        },
+        rotation: DbVector3 {
+            x: 0.0,
+            y: 0.0,
+            z: -90.0,
+        },
         is_looted: false,
         looted_at_us: 0,
     });
@@ -92,6 +127,8 @@ pub fn lootable_create_type(
     ctx: &ReducerContext,
     type_id: u32,
     name: String,
+    description: String,
+    weight: f32,
     quantity: u32,
     respawn_time_seconds: f32,
     loot_distance: f32,
@@ -101,6 +138,8 @@ pub fn lootable_create_type(
     let item_type = LootableItemType {
         type_id,
         name,
+        description,
+        weight,
         quantity,
         respawn_time_us,
         loot_distance,
@@ -143,14 +182,26 @@ pub fn lootable_create_spawn(
 /// Server validates: item exists, player in range, not on cooldown, and adds to inventory
 #[spacetimedb::reducer]
 pub fn lootable_loot(ctx: &ReducerContext, spawn_id: u32) -> Result<(), String> {
-    log::info!("Player {:?} attempting to loot spawn {}", ctx.sender, spawn_id);
+    log::info!(
+        "Player {:?} attempting to loot spawn {}",
+        ctx.sender,
+        spawn_id
+    );
 
     // Find the player
-    let player = ctx.db.player().identity().find(ctx.sender)
+    let player = ctx
+        .db
+        .player()
+        .identity()
+        .find(ctx.sender)
         .ok_or("Player not found")?;
 
     // Get the player's entity for position
-    let player_entity = ctx.db.entity().entity_id().find(&player.entity_id)
+    let player_entity = ctx
+        .db
+        .entity()
+        .entity_id()
+        .find(&player.entity_id)
         .ok_or("Player entity not found")?;
 
     // Find the spawn point
@@ -161,7 +212,11 @@ pub fn lootable_loot(ctx: &ReducerContext, spawn_id: u32) -> Result<(), String> 
     };
 
     // Get the item type (needed for loot_distance and other checks)
-    let item_type = ctx.db.lootable_item_type().type_id().find(spawn.type_id)
+    let item_type = ctx
+        .db
+        .lootable_item_type()
+        .type_id()
+        .find(spawn.type_id)
         .ok_or("Lootable item type not found")?;
 
     // Check if player is in range using item's loot_distance
@@ -181,7 +236,8 @@ pub fn lootable_loot(ctx: &ReducerContext, spawn_id: u32) -> Result<(), String> 
         let time_since_looted = current_time - spawn.looted_at_us;
 
         if time_since_looted < item_type.respawn_time_us {
-            let remaining_seconds = (item_type.respawn_time_us - time_since_looted) as f64 / 1_000_000.0;
+            let remaining_seconds =
+                (item_type.respawn_time_us - time_since_looted) as f64 / 1_000_000.0;
             return Err(format!(
                 "Item is on cooldown. {:.1} seconds remaining",
                 remaining_seconds
@@ -262,7 +318,10 @@ pub fn lootable_delete_spawn(ctx: &ReducerContext, spawn_id: u32) -> Result<(), 
 
 /// Delete all spawns of a specific type
 #[spacetimedb::reducer]
-pub fn lootable_delete_all_spawns_of_type(ctx: &ReducerContext, type_id: u32) -> Result<(), String> {
+pub fn lootable_delete_all_spawns_of_type(
+    ctx: &ReducerContext,
+    type_id: u32,
+) -> Result<(), String> {
     let spawns_to_delete: Vec<_> = ctx
         .db
         .lootable_spawn()
@@ -275,6 +334,10 @@ pub fn lootable_delete_all_spawns_of_type(ctx: &ReducerContext, type_id: u32) ->
         ctx.db.lootable_spawn().spawn_id().delete(*spawn_id);
     }
 
-    log::info!("Deleted {} spawns of type {}", spawns_to_delete.len(), type_id);
+    log::info!(
+        "Deleted {} spawns of type {}",
+        spawns_to_delete.len(),
+        type_id
+    );
     Ok(())
 }

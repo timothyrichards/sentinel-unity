@@ -17,6 +17,10 @@ namespace SpacetimeDB.Types
         public uint TypeId;
         [DataMember(Name = "name")]
         public string Name;
+        [DataMember(Name = "description")]
+        public string Description;
+        [DataMember(Name = "weight")]
+        public float Weight;
         [DataMember(Name = "quantity")]
         public uint Quantity;
         [DataMember(Name = "respawn_time_us")]
@@ -27,6 +31,8 @@ namespace SpacetimeDB.Types
         public LootableItemType(
             uint TypeId,
             string Name,
+            string Description,
+            float Weight,
             uint Quantity,
             long RespawnTimeUs,
             float LootDistance
@@ -34,6 +40,8 @@ namespace SpacetimeDB.Types
         {
             this.TypeId = TypeId;
             this.Name = Name;
+            this.Description = Description;
+            this.Weight = Weight;
             this.Quantity = Quantity;
             this.RespawnTimeUs = RespawnTimeUs;
             this.LootDistance = LootDistance;
@@ -42,6 +50,7 @@ namespace SpacetimeDB.Types
         public LootableItemType()
         {
             this.Name = "";
+            this.Description = "";
         }
     }
 }

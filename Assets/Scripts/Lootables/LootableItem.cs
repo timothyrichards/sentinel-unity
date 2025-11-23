@@ -5,19 +5,22 @@ using SpacetimeDB.Types;
 [RequireComponent(typeof(SphereCollider))]
 public class LootableItem : MonoBehaviour
 {
-    [Header("Item Info")]
-    public uint itemId;
+    // Static reference to the most recently entered lootable item
+    private static LootableItem currentTarget;
+
+    [Header("Configuration")]
     public Sprite itemIcon;
-    public string itemName;
-    public string itemDescription;
-    public float itemWeight = 1f;
-    public uint quantity = 1;
+    public uint itemId;
 
     [Header("Server Sync")]
     [Tooltip("The spawn ID from the server's lootable_spawn table.")]
     public uint spawnId;
-    [Tooltip("The type ID for looking up loot distance. Set automatically by LootableSync.")]
+    [Tooltip("The type ID for looking up item data. Set automatically by LootableSync.")]
     public uint typeId;
+    public string itemName;
+    public string itemDescription;
+
+    private bool hasLoadedFromServer = false;
 
     [Header("Fallback Settings")]
     [Tooltip("Used if server data not available")]
@@ -64,6 +67,12 @@ public class LootableItem : MonoBehaviour
         inputActions.Player.PickUp.performed -= OnPickUp;
         inputActions.Disable();
 
+        // Clear target if we were the current target
+        if (currentTarget == this)
+        {
+            currentTarget = null;
+        }
+
         if (SpacetimeManager.Conn != null)
         {
             SpacetimeManager.Conn.Db.LootableSpawn.OnUpdate -= HandleSpawnUpdated;
@@ -75,7 +84,33 @@ public class LootableItem : MonoBehaviour
     {
         if (isLooted) return;
 
+        // Try to load item data from server if not yet loaded
+        if (!hasLoadedFromServer)
+        {
+            TryLoadFromServer();
+        }
+
         CheckPlayerProximity();
+    }
+
+    /// <summary>
+    /// Attempts to load item name, description, weight, and quantity from the server database
+    /// </summary>
+    private void TryLoadFromServer()
+    {
+        if (SpacetimeManager.Conn == null)
+            return;
+
+        var itemType = SpacetimeManager.Conn.Db.LootableItemType.TypeId.Find(typeId);
+        if (itemType == null)
+            return;
+
+        itemId = itemType.TypeId;
+        itemName = itemType.Name;
+        itemDescription = itemType.Description;
+        hasLoadedFromServer = true;
+
+        Debug.Log($"[LootableItem] Loaded from server: {itemName} - {itemDescription}");
     }
 
     private void CheckPlayerProximity()
@@ -118,9 +153,20 @@ public class LootableItem : MonoBehaviour
         playerInRange = inRange;
 
         if (inRange)
+        {
+            // Set this as the current target (most recently entered)
+            currentTarget = this;
             ShowPickupPrompt();
+        }
         else
-            HidePickupPrompt();
+        {
+            // Only clear target if we were the current target
+            if (currentTarget == this)
+            {
+                currentTarget = null;
+                HidePickupPrompt();
+            }
+        }
     }
 
     private void HandleConnected()
@@ -150,7 +196,8 @@ public class LootableItem : MonoBehaviour
     {
         if (isLooted) return;
 
-        if (context.ReadValue<float>() > 0.5f && playerInRange)
+        // Only respond if this is the current target (most recently entered)
+        if (context.ReadValue<float>() > 0.5f && currentTarget == this)
         {
             Debug.Log($"Picking up {itemName}");
             PickupItem();
@@ -169,7 +216,14 @@ public class LootableItem : MonoBehaviour
     {
         isLooted = true;
         playerInRange = false;
-        HidePickupPrompt();
+
+        // Clear target if we were the current target
+        if (currentTarget == this)
+        {
+            currentTarget = null;
+            HidePickupPrompt();
+        }
+
         SetVisible(false);
         Debug.Log($"[LootableItem] {itemName} looted and hidden");
     }

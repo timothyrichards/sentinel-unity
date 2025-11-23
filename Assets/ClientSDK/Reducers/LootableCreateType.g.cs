@@ -12,12 +12,12 @@ namespace SpacetimeDB.Types
 {
     public sealed partial class RemoteReducers : RemoteBase
     {
-        public delegate void LootableCreateTypeHandler(ReducerEventContext ctx, uint typeId, string name, uint quantity, float respawnTimeSeconds, float lootDistance);
+        public delegate void LootableCreateTypeHandler(ReducerEventContext ctx, uint typeId, string name, string description, float weight, uint quantity, float respawnTimeSeconds, float lootDistance);
         public event LootableCreateTypeHandler? OnLootableCreateType;
 
-        public void LootableCreateType(uint typeId, string name, uint quantity, float respawnTimeSeconds, float lootDistance)
+        public void LootableCreateType(uint typeId, string name, string description, float weight, uint quantity, float respawnTimeSeconds, float lootDistance)
         {
-            conn.InternalCallReducer(new Reducer.LootableCreateType(typeId, name, quantity, respawnTimeSeconds, lootDistance), this.SetCallReducerFlags.LootableCreateTypeFlags);
+            conn.InternalCallReducer(new Reducer.LootableCreateType(typeId, name, description, weight, quantity, respawnTimeSeconds, lootDistance), this.SetCallReducerFlags.LootableCreateTypeFlags);
         }
 
         public bool InvokeLootableCreateType(ReducerEventContext ctx, Reducer.LootableCreateType args)
@@ -27,6 +27,8 @@ namespace SpacetimeDB.Types
                 ctx,
                 args.TypeId,
                 args.Name,
+                args.Description,
+                args.Weight,
                 args.Quantity,
                 args.RespawnTimeSeconds,
                 args.LootDistance
@@ -45,6 +47,10 @@ namespace SpacetimeDB.Types
             public uint TypeId;
             [DataMember(Name = "name")]
             public string Name;
+            [DataMember(Name = "description")]
+            public string Description;
+            [DataMember(Name = "weight")]
+            public float Weight;
             [DataMember(Name = "quantity")]
             public uint Quantity;
             [DataMember(Name = "respawn_time_seconds")]
@@ -55,6 +61,8 @@ namespace SpacetimeDB.Types
             public LootableCreateType(
                 uint TypeId,
                 string Name,
+                string Description,
+                float Weight,
                 uint Quantity,
                 float RespawnTimeSeconds,
                 float LootDistance
@@ -62,6 +70,8 @@ namespace SpacetimeDB.Types
             {
                 this.TypeId = TypeId;
                 this.Name = Name;
+                this.Description = Description;
+                this.Weight = Weight;
                 this.Quantity = Quantity;
                 this.RespawnTimeSeconds = RespawnTimeSeconds;
                 this.LootDistance = LootDistance;
@@ -70,6 +80,7 @@ namespace SpacetimeDB.Types
             public LootableCreateType()
             {
                 this.Name = "";
+                this.Description = "";
             }
 
             string IReducerArgs.ReducerName => "lootable_create_type";

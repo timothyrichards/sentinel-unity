@@ -14,9 +14,9 @@ pub fn world_spawn_init(ctx: &ReducerContext) -> Result<(), String> {
         ctx,
         0,
         DbVector3 {
-            x: 0.0,
-            y: 2.0,
-            z: 0.0,
+            x: -221.635178,
+            y: -29.1857796,
+            z: 252.461853,
         },
         DbVector3::default(),
     )?;
@@ -35,13 +35,9 @@ pub fn world_spawn_set(
         ctx.db.world_spawn().id().update(spawn);
     } else {
         ctx.db.world_spawn().insert(WorldSpawn {
-            id: 0,
-            position: DbVector3 {
-                x: 0.0,
-                y: 52.0,
-                z: -234.0,
-            },
-            rotation: DbVector3::default(),
+            id,
+            position,
+            rotation,
         });
     }
     Ok(())

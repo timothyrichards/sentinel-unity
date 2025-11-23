@@ -30,8 +30,8 @@ public class SpacetimeManager : MonoBehaviour
             .WithUri(SERVER_URL)
             .WithModuleName(MODULE_NAME);
 
-        // Clear cached connection data to ensure proper connection
-        // PlayerPrefs.DeleteKey("spacetimedb.identity_token" + " - " + Application.dataPath);
+        // Clear cached connection data to ensure proper connection (enable when switching servers)
+        // PlayerPrefs.DeleteKey("spacetimedb.identity_token - " + Application.dataPath);
 
         // If the user has a SpacetimeDB auth token stored in the Unity PlayerPrefs,
         // we can use it to authenticate the connection.
